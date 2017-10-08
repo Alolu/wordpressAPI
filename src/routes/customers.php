@@ -3,6 +3,7 @@
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 use \Firebase\JWT\JWT;
+use \Tuupola\Base62;
 
 $app->get('/api/customers/get', function(Request $req,Response $rep){
 	$sql = "SELECT * FROM clients";
@@ -57,21 +58,19 @@ $app->get('/api/customers/compare', function(Request $req,Response $rep){
 		$db = null;
 		if($customer){
 
-			$tokenId    = base64_encode(mcrypt_create_iv(32));
-			$issuedAt   = time();
-		    $notBefore  = $issuedAt + 10;             //Adding 10 seconds
-		    $expire     = $notBefore + 60;            // Adding 60 seconds
+			$tokenId    = (new Base62)->encode(random_bytes(16));
+			$issuedAt   = time();            //Adding 10 seconds
+		    $expire     = $issuedAt + 60;            // Adding 60 seconds
 
 		    $data = [
 		        'iat'  => $issuedAt,         // Issued at: time when the token was generated
-		        'jti'  => $tokenId,          // Json Token Id: an unique identifier for the token
-		        'nbf'  => $notBefore,        // Not before
+		        'jti'  => $tokenId,          // Json Token Id: an unique identifier for the token  
 		        'exp'  => $expire,           // Expire
 		        'data' => [                  // Data related to the signer user
 		            'id'   => $customer['id'], // userid from the users table
 		            'mail' => $customer['mail'],
 		            'nom' => $customer['nom'],
-		            'prenom' => $customer['prenom'],
+		            'prenom' => $customer['prenom']
 		        ]
 		    ];
 
@@ -84,9 +83,9 @@ $app->get('/api/customers/compare', function(Request $req,Response $rep){
 	        );
 	        
 		    $unencodedArray = ['jwt' => $jwt];
-		    echo json_encode($unencodedArray);
+		    return $rep->withStatus(200)->write(json_encode($unencodedArray));
 		}else{
-			echo "MAUVAIS";
+			return $rep->withStatus(401)->write(json_encode("Mauvais mot de passe"));
 		}
 	}catch(PDOException $e){
 		echo $e->getMessage();
